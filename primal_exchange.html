@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Primal Exchange</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════ TOKENS ═══════ */
+:root{
+  --red:#C8102E;--red-dark:#9B0D22;--red-light:#E03050;
+  --silver:#C8C8CC;--silver-dim:#888890;
+  --bg:#080808;--bg2:#101010;--bg3:#181818;
+  --card:#111;--card2:#1A1A1A;
+  --text:#F0F0F0;--dim:#686870;
+  --border:rgba(200,200,210,.1);--border-r:rgba(200,16,46,.25);
+  --sred:0 4px 32px rgba(200,16,46,.3);
+  --green:#22C55E;--orange:#F59E0B;--blue:#3B82F6;--purple:#8B5CF6;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Manrope',sans-serif;overflow-x:hidden;overscroll-behavior:none;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 55% 35% at 85% 5%,rgba(200,16,46,.1) 0%,transparent 65%),radial-gradient(ellipse 40% 40% at 5% 95%,rgba(200,16,46,.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
+
+/* ═══════ LOADING ═══════ */
+#loadingScreen{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s ease;}
+#loadingScreen.hide{opacity:0;pointer-events:none;}
+.load-logo{animation:lb 1.6s ease-in-out infinite;}
+@keyframes lb{0%,100%{filter:drop-shadow(0 0 12px rgba(200,16,46,.4));}50%{filter:drop-shadow(0 0 28px rgba(200,16,46,.8));}}
+.load-name{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:var(--text);}
+.load-sub{font-size:11px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;}
+.load-bar{width:160px;height:2px;background:var(--card2);border-radius:2px;overflow:hidden;}
+.load-fill{height:100%;background:linear-gradient(90deg,var(--red-dark),var(--red));border-radius:2px;animation:lf 1.8s ease-in-out infinite;}
+@keyframes lf{0%{width:0%;margin-left:0;}50%{width:100%;margin-left:0;}100%{width:0%;margin-left:100%;}}
+
+/* ═══════ APP ═══════ */
+.app{position:relative;z-index:1;min-height:100vh;padding-bottom:86px;}
+
+/* ═══════ HEADER ═══════ */
+.header{padding:16px 18px 0;display:flex;align-items:center;gap:10px;}
+.hlogo-wrap{flex-shrink:0;}
+.hlogo-wrap img{width:40px;height:40px;border-radius:50%;display:block;}
+.htxt{flex:1;}
+.htxt h1{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;line-height:1;color:var(--text);}
+.htxt span{font-size:9px;color:var(--dim);font-weight:600;letter-spacing:2px;text-transform:uppercase;}
+.hright{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.hstatus{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--green);font-weight:700;letter-spacing:.5px;}
+.sdot{width:5px;height:5px;background:var(--green);border-radius:50%;animation:pg 2s infinite;}
+@keyframes pg{0%,100%{opacity:1;}50%{opacity:.4;}}
+.hhours{font-size:9px;color:var(--dim);font-weight:500;}
+
+/* ═══════ DECO LINE ═══════ */
+.deco{margin:12px 18px 0;height:1px;background:linear-gradient(90deg,transparent,var(--red),var(--silver-dim),var(--red),transparent);opacity:.4;}
+
+/* ═══════ TICKER ═══════ */
+.ticker-wrap{overflow:hidden;background:rgba(200,16,46,.06);border-top:1px solid rgba(200,16,46,.15);border-bottom:1px solid rgba(200,16,46,.15);padding:6px 0;margin:12px 0 0;user-select:none;}
+.ticker-inner{display:flex;will-change:transform;}
+.t-item{display:flex;align-items:center;gap:5px;padding:0 20px;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0;letter-spacing:.3px;}
+.t-p{color:var(--dim);}
+.t-v{color:var(--silver);}
+.t-up{color:var(--green);font-size:9px;}
+.t-dn{color:var(--red-light);font-size:9px;}
+
+/* ═══════ TABS ═══════ */
+.tabs{display:flex;gap:4px;padding:12px 18px 0;}
+.tab{flex:1;padding:8px 3px;border:1px solid var(--border);background:var(--card);border-radius:8px;font-size:10px;font-weight:700;color:var(--dim);cursor:pointer;text-align:center;transition:all .18s;letter-spacing:.3px;}
+.tab.active{background:var(--red);border-color:var(--red-light);color:white;box-shadow:var(--sred);}
+
+/* ═══════ PAGES ═══════ */
+.page{display:none;animation:fi .22s ease;}
+.page.active{display:block;}
+@keyframes fi{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.sec{padding:12px 18px 0;}
+.slbl{font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+
+/* ═══════ RATE CARDS ═══════ */
+.rate-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden;cursor:pointer;transition:all .18s;}
+.rate-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red-dark),var(--red),var(--silver-dim));opacity:.8;}
+.rate-card:active{transform:scale(.982);background:var(--card2);}
+.rc-d{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'Bebas Neue',sans-serif;font-size:56px;color:rgba(200,16,46,.06);line-height:1;pointer-events:none;letter-spacing:2px;}
+.rpair{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.fpair{display:flex;}
+.flag{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid var(--bg);}
+.flag:nth-child(2){margin-left:-6px;}
+.pname{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--text);}
+.psub{font-size:10px;color:var(--dim);margin-top:1px;}
+.rbody{display:flex;justify-content:space-between;align-items:flex-end;}
+.rmain{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--silver);line-height:1;letter-spacing:1px;}
+.rmain .curr{font-family:'Manrope',sans-serif;font-size:13px;color:var(--dim);font-weight:600;margin-left:2px;}
+.rsub{margin-top:4px;font-size:10px;color:var(--dim);}
+.taphint{font-size:10px;color:var(--red-light);font-weight:700;padding:5px 10px;background:rgba(200,16,46,.08);border:1px solid rgba(200,16,46,.2);border-radius:20px;align-self:flex-end;letter-spacing:.3px;}
+.rskel{display:inline-block;width:90px;height:32px;background:linear-gradient(90deg,var(--card2) 25%,var(--bg3) 50%,var(--card2) 75%);background-size:200% 100%;animation:sh 1.3s infinite;border-radius:4px;}
+@keyframes sh{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.lim-banner{background:rgba(200,16,46,.06);border:1px solid rgba(200,16,46,.18);border-radius:10px;padding:9px 13px;margin-bottom:10px;display:flex;align-items:center;gap:7px;font-size:10px;color:var(--silver-dim);font-weight:600;letter-spacing:.3px;}
+
+/* ═══════ CHART ═══════ */
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;}
+.chdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.cttl{font-size:12px;font-weight:700;color:var(--text);}
+.ctabs{display:flex;gap:3px;}
+.ctab{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid var(--border);color:var(--dim);background:transparent;transition:all .15s;}
+.ctab.active{background:var(--red);border-color:var(--red);color:white;}
+.ctip{font-size:11px;color:var(--silver);font-weight:700;min-height:15px;margin-bottom:5px;text-align:center;}
+canvas#miniChart{width:100%;height:88px;display:block;cursor:crosshair;}
+
+/* ═══════ MODAL SHEETS ═══════ */
+.ov{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);align-items:flex-end;justify-content:center;}
+.ov.open{display:flex;animation:fi .18s ease;}
+.sheet{width:100%;max-width:480px;background:var(--bg2);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:0 0 max(20px,env(safe-area-inset-bottom));animation:su .26s cubic-bezier(.4,0,.2,1);}
+@keyframes su{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.shandle{width:32px;height:3px;background:var(--border);border-radius:2px;margin:10px auto 0;}
+.shdr{padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;}
+.sttl{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
+.sclose{width:28px;height:28px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--dim);}
+.sbody{padding:14px 18px 0;}
+.mpinfo{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:11px;}
+.mplbl{font-size:11px;color:var(--dim);}
+.mprate{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--silver);letter-spacing:1px;}
+.mlim{display:flex;justify-content:space-between;background:rgba(200,16,46,.05);border:1px solid rgba(200,16,46,.15);border-radius:8px;padding:7px 11px;margin-bottom:11px;font-size:10px;color:var(--dim);font-weight:600;}
+.milbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.minput{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:13px 14px;font-size:22px;font-weight:800;color:var(--text);font-family:'Manrope',sans-serif;outline:none;font-variant-numeric:tabular-nums;transition:border-color .2s;appearance:none;}
+.minput:focus{border-color:rgba(200,16,46,.5);}
+.minput.err-b{border-color:var(--red-light);}
+.minput::placeholder{color:var(--dim);font-weight:500;font-size:17px;}
+.lim-err{font-size:11px;color:var(--red-light);margin-top:4px;min-height:15px;}
+.mres{margin-top:10px;background:var(--card);border:1px solid var(--border-r);border-radius:12px;padding:13px 14px;display:flex;justify-content:space-between;align-items:center;}
+.mrlab{font-size:11px;color:var(--dim);font-weight:600;}
+.mrval{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--silver);letter-spacing:1px;}
+.mcta{margin:12px 18px 0;display:flex;flex-direction:column;gap:8px;}
+
+/* ═══════ FULLSCREENS ═══════ */
+.fscreen{display:none;position:fixed;inset:0;z-index:400;background:var(--bg);flex-direction:column;}
+.fscreen.open{display:flex;animation:fi .2s ease;}
+.fshdr{padding:18px 18px 0;display:flex;align-items:center;gap:12px;}
+.fsback{width:34px;height:34px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;flex-shrink:0;color:var(--dim);}
+.fstitle{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
+.fsbody{padding:18px;flex:1;overflow-y:auto;}
+.cssum{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:13px;position:relative;overflow:hidden;}
+.cssum::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red),var(--silver-dim));opacity:.7;}
+.csrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+.csrow:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+.csk{font-size:11px;color:var(--dim);}
+.csv{font-size:13px;font-weight:700;}
+.csv.big{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--silver);letter-spacing:1px;}
+
+/* ═══════ ORDERS ═══════ */
+.olist{display:flex;flex-direction:column;gap:9px;}
+.ocard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 15px;position:relative;overflow:hidden;}
+.ocard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.ocard.new::before{background:var(--red-light);}
+.ocard.pending::before{background:var(--orange);}
+.ocard.done::before{background:var(--green);}
+.ocard.cancelled::before{background:var(--dim);}
+.ohead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;}
+.opair{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1.5px;}
+.ost{font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px;letter-spacing:.5px;}
+.ost.new{background:rgba(200,16,46,.15);color:var(--red-light);border:1px solid rgba(200,16,46,.3);}
+.ost.pending{background:rgba(245,158,11,.15);color:var(--orange);border:1px solid rgba(245,158,11,.3);}
+.ost.done{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.ost.cancelled{background:rgba(104,104,112,.1);color:var(--dim);border:1px solid rgba(104,104,112,.3);}
+.oamt{display:flex;gap:8px;align-items:center;margin-bottom:4px;}
+.ogive{font-size:13px;color:var(--dim);}
+.oget{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--silver);letter-spacing:1px;}
+.otime{font-size:9px;color:var(--dim);margin-bottom:9px;}
+.oacts{display:flex;gap:6px;}
+.oact{font-size:10px;font-weight:700;padding:5px 11px;border-radius:20px;cursor:pointer;border:none;font-family:'Manrope',sans-serif;transition:all .15s;letter-spacing:.3px;}
+.oact:active{transform:scale(.96);}
+.oact-done{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.28);}
+.oact-cancel{background:rgba(200,16,46,.1);color:var(--red-light);border:1px solid rgba(200,16,46,.2);}
+
+/* ═══════ CHANNEL ═══════ */
+.ch-hero{margin:12px 18px 0;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden;}
+.ch-hero::before{content:'P';position:absolute;font-family:'Bebas Neue',sans-serif;font-size:180px;color:rgba(200,16,46,.04);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;letter-spacing:-5px;}
+.ch-logoimg{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;display:block;}
+.chn{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;margin-bottom:4px;}
+.chd{font-size:12px;color:var(--dim);line-height:1.5;max-width:250px;margin:0 auto 12px;}
+.chst{display:flex;justify-content:center;gap:20px;padding:11px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:13px;}
+.stv{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--red-light);letter-spacing:1px;}
+.stl{font-size:9px;color:var(--dim);font-weight:700;margin-top:1px;letter-spacing:.5px;}
+.icards{padding:10px 18px 0;display:flex;flex-direction:column;gap:8px;}
+.icard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 14px;display:flex;gap:11px;align-items:flex-start;}
+.iico{font-size:18px;flex-shrink:0;margin-top:1px;}
+.itt{font-size:12px;font-weight:700;margin-bottom:2px;}
+.itx{font-size:11px;color:var(--dim);line-height:1.45;}
+
+/* ═══════ AUTH ═══════ */
+.auth-ov{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);align-items:flex-end;justify-content:center;}
+.auth-ov.open{display:flex;animation:fi .2s ease;}
+.auth-sheet{width:100%;max-width:480px;background:var(--bg2);border-radius:20px 20px 0 0;border:1px solid var(--border);border-bottom:none;padding:0 22px max(28px,env(safe-area-inset-bottom));animation:su .26s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;}
+.auth-sheet::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red-dark),var(--red),var(--silver-dim),var(--red));}
+.ah{width:32px;height:3px;background:var(--border);border-radius:2px;margin:12px auto 16px;}
+.alogo-wrap{display:flex;justify-content:center;margin-bottom:10px;}
+.alogo-wrap img{width:44px;height:44px;border-radius:50%;}
+.atit{font-family:'Bebas Neue',sans-serif;font-size:20px;text-align:center;letter-spacing:3px;margin-bottom:3px;}
+.asub{font-size:11px;color:var(--dim);text-align:center;line-height:1.5;margin-bottom:14px;}
+.asegs{display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:14px;}
+.aseg{flex:1;padding:7px;text-align:center;font-size:12px;font-weight:700;color:var(--dim);cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.3px;}
+.aseg.active{background:var(--card2);color:var(--text);}
+.afield{margin-bottom:11px;}
+.albl{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:5px;display:block;}
+.ainp{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:11px 13px;font-size:14px;font-weight:600;color:var(--text);font-family:'Manrope',sans-serif;outline:none;transition:border-color .2s;appearance:none;}
+.ainp:focus{border-color:rgba(200,16,46,.5);}
+.ainp.err{border-color:var(--red-light);}
+.ainp::placeholder{color:var(--dim);font-weight:400;}
+.aerr{font-size:10px;color:var(--red-light);margin-top:3px;display:none;}
+.aerr.show{display:block;}
+.aclo{text-align:center;margin-top:11px;font-size:11px;color:var(--dim);}
+.aclo a{color:var(--silver);font-weight:600;cursor:pointer;}
+
+/* ═══════ WELCOME ═══════ */
+.wov{display:none;position:fixed;inset:0;z-index:600;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;}
+.wov.open{display:flex;animation:fi .3s ease;}
+.wlogo-img{width:80px;height:80px;border-radius:50%;margin-bottom:16px;box-shadow:0 0 40px rgba(200,16,46,.4);}
+.wt{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;margin-bottom:5px;text-align:center;}
+.wn{color:var(--red-light);}
+.ws{font-size:12px;color:var(--dim);text-align:center;line-height:1.5;max-width:270px;margin-bottom:20px;}
+.wtg{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;width:100%;max-width:290px;margin-bottom:20px;}
+
+/* ═══════ BLOCKED ═══════ */
+.blk{background:rgba(200,16,46,.08);border:1px solid rgba(200,16,46,.3);border-radius:12px;padding:16px;margin-bottom:13px;text-align:center;}
+.blk-i{font-size:30px;margin-bottom:7px;}
+.blk-t{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--red-light);margin-bottom:4px;}
+.blk-s{font-size:11px;color:var(--dim);line-height:1.4;}
+
+/* ═══════ ADMIN PANEL ═══════ */
+.adm-ov{display:none;position:fixed;inset:0;z-index:800;background:var(--bg);flex-direction:column;overflow:hidden;}
+.adm-ov.open{display:flex;animation:fi .22s ease;}
+.adm-top{background:rgba(8,8,8,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(139,92,246,.2);padding:13px 16px;display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.adm-logo{width:30px;height:30px;border-radius:50%;flex-shrink:0;}
+.adm-ttl{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;flex:1;}
+.adm-role{font-size:9px;background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.4);color:var(--purple);padding:2px 7px;border-radius:20px;font-weight:800;letter-spacing:.5px;}
+.adm-close{width:26px;height:26px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--dim);}
+.adm-tabs{display:flex;gap:4px;padding:11px 14px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.adm-tabs::-webkit-scrollbar{display:none;}
+.adm-tab{flex-shrink:0;padding:6px 12px;border:1px solid var(--border);background:var(--card);border-radius:9px;font-size:10px;font-weight:800;color:var(--dim);cursor:pointer;white-space:nowrap;transition:all .18s;letter-spacing:.5px;}
+.adm-tab.active{background:linear-gradient(135deg,#4B2D8A,var(--purple));border-color:var(--purple);color:white;box-shadow:0 3px 12px rgba(139,92,246,.28);}
+.abadge{display:inline-flex;align-items:center;justify-content:center;min-width:13px;height:13px;background:var(--red);border-radius:7px;font-size:8px;font-weight:800;color:white;padding:0 3px;margin-left:3px;vertical-align:middle;}
+.adm-body{flex:1;overflow-y:auto;padding:13px 14px 20px;}
+.apanel{display:none;animation:fi .2s ease;}
+.apanel.active{display:block;}
+.aptitle{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(139,92,246,.7);margin-bottom:11px;}
+
+/* STATS */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.sc.c-blue::before{background:var(--blue);}
+.sc.c-green::before{background:var(--green);}
+.sc.c-orange::before{background:var(--orange);}
+.sc.c-red::before{background:var(--red);}
+.sc.c-purple::before{background:var(--purple);}
+.sc.c-silver::before{background:var(--silver-dim);}
+.sc-ico{font-size:18px;margin-bottom:4px;}
+.sc-val{font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;margin-bottom:2px;letter-spacing:1px;}
+.sc-lbl{font-size:9px;color:var(--dim);font-weight:700;letter-spacing:.5px;}
+.sc.c-blue .sc-val{color:var(--blue);}
+.sc.c-green .sc-val{color:var(--green);}
+.sc.c-orange .sc-val{color:var(--orange);}
+.sc.c-red .sc-val{color:var(--red-light);}
+.sc.c-purple .sc-val{color:var(--purple);}
+.sc.c-silver .sc-val{color:var(--silver);}
+
+/* CHART BAR */
+.act-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:13px;}
+.act-ttl{font-size:11px;font-weight:700;margin-bottom:9px;}
+.bar-ch{display:flex;align-items:flex-end;gap:4px;height:52px;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bar{background:linear-gradient(to top,#4B2D8A,var(--purple));border-radius:3px 3px 0 0;width:100%;min-height:3px;}
+.bar-l{font-size:8px;color:var(--dim);font-weight:700;}
+
+/* ADMIN ORDERS */
+.ao-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin-bottom:8px;position:relative;overflow:hidden;}
+.ao-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.ao-card.new::before{background:var(--red-light);}
+.ao-card.pending::before{background:var(--orange);}
+.ao-card.done::before{background:var(--green);}
+.ao-card.cancelled::before{background:var(--dim);}
+.ao-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.ao-pair{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;}
+.ao-st{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.5px;}
+.ao-st.new{background:rgba(200,16,46,.15);color:var(--red-light);border:1px solid rgba(200,16,46,.3);}
+.ao-st.pending{background:rgba(245,158,11,.15);color:var(--orange);border:1px solid rgba(245,158,11,.3);}
+.ao-st.done{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.ao-st.cancelled{background:rgba(104,104,112,.12);color:var(--dim);border:1px solid rgba(104,104,112,.3);}
+.ao-cli{font-size:11px;color:var(--dim);margin-bottom:3px;}
+.ao-cli b{color:var(--text);}
+.ao-amt{display:flex;gap:7px;align-items:center;margin-bottom:3px;}
+.ao-give{font-size:12px;color:var(--dim);}
+.ao-get{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--silver);letter-spacing:.8px;}
+.ao-time{font-size:9px;color:var(--dim);margin-bottom:7px;}
+.ao-acts{display:flex;gap:5px;flex-wrap:wrap;}
+.aoa{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;cursor:pointer;border:none;font-family:'Manrope',sans-serif;transition:all .15s;letter-spacing:.3px;}
+.aoa:active{transform:scale(.96);}
+.aoa-pend{background:rgba(245,158,11,.12);color:var(--orange);border:1px solid rgba(245,158,11,.28);}
+.aoa-done{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.28);}
+.aoa-msg{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.28);}
+
+/* USERS */
+.u-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin-bottom:8px;}
+.u-row.blocked{border-color:var(--border-r);background:rgba(200,16,46,.04);}
+.u-top{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.u-av{width:34px;height:34px;background:linear-gradient(135deg,var(--purple),#4B2D8A);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0;}
+.u-inf{flex:1;min-width:0;}
+.u-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.u-un{font-size:10px;color:var(--dim);}
+.u-st{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;flex-shrink:0;letter-spacing:.5px;}
+.u-st.active{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.28);}
+.u-st.blocked{background:rgba(200,16,46,.15);color:var(--red-light);border:1px solid rgba(200,16,46,.28);}
+.u-st.staff{background:rgba(139,92,246,.15);color:var(--purple);border:1px solid rgba(139,92,246,.28);}
+.u-meta{display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.u-m{font-size:9px;color:var(--dim);font-weight:600;letter-spacing:.3px;}
+.u-m b{color:var(--text);}
+.u-acts{display:flex;gap:5px;flex-wrap:wrap;}
+.ua{font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;cursor:pointer;border:none;font-family:'Manrope',sans-serif;transition:all .15s;letter-spacing:.3px;}
+.ua:active{transform:scale(.96);}
+.ua-blk{background:rgba(200,16,46,.12);color:var(--red-light);border:1px solid rgba(200,16,46,.22);}
+.ua-unblk{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.22);}
+.ua-promo{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid rgba(139,92,246,.22);}
+.ua-demo{background:rgba(245,158,11,.12);color:var(--orange);border:1px solid rgba(245,158,11,.22);}
+.ua-ord{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.22);}
+.ua-del{background:rgba(200,16,46,.08);color:var(--red-light);border:1px solid rgba(200,16,46,.18);}
+
+/* FILTER / SEARCH */
+.frow{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;}
+.fb{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--dim);transition:all .15s;letter-spacing:.3px;}
+.fb.active{background:var(--card2);border-color:var(--purple);color:var(--purple);}
+.srch{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);font-family:'Manrope',sans-serif;outline:none;transition:border-color .2s;margin-bottom:10px;appearance:none;}
+.srch:focus{border-color:rgba(139,92,246,.5);}
+.srch::placeholder{color:var(--dim);}
+
+/* SETTINGS */
+.ss{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px;}
+.ss-ttl{font-size:9px;font-weight:800;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;}
+.sr{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+.sr:last-child{border-bottom:none;padding-bottom:0;}
+.sr-lbl{font-size:12px;font-weight:600;}
+.sr-sub{font-size:10px;color:var(--dim);margin-top:1px;}
+.toggle{width:40px;height:22px;background:var(--bg3);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:1px solid var(--border);}
+.toggle.on{background:var(--purple);border-color:var(--purple);}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;background:white;border-radius:50%;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.toggle.on::after{left:20px;}
+.sinp{background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:var(--text);font-family:'Manrope',sans-serif;outline:none;width:80px;text-align:center;transition:border-color .2s;appearance:none;}
+.sinp:focus{border-color:rgba(139,92,246,.5);}
+
+/* ═══════ BUTTONS ═══════ */
+.btn-p{width:100%;padding:13px;border:none;border-radius:12px;font-size:13px;font-weight:800;color:white;font-family:'Manrope',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,var(--red),var(--red-dark));box-shadow:0 4px 18px rgba(200,16,46,.3);transition:all .18s;letter-spacing:.5px;}
+.btn-p:active{transform:scale(.975);}
+.btn-p:disabled{opacity:.35;pointer-events:none;}
+.btn-s{width:100%;padding:12px;border:1.5px solid rgba(200,200,210,.15);border-radius:12px;font-size:13px;font-weight:800;color:var(--silver);font-family:'Manrope',sans-serif;cursor:pointer;background:transparent;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .18s;letter-spacing:.5px;}
+.btn-s:active{background:rgba(200,200,210,.05);transform:scale(.975);}
+.btn-tg{width:100%;padding:13px;border:none;border-radius:12px;font-size:13px;font-weight:800;color:white;font-family:'Manrope',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,#0088CC,#006BA8);box-shadow:0 4px 16px rgba(0,136,204,.25);transition:all .18s;letter-spacing:.5px;}
+.btn-tg:active{transform:scale(.975);}
+.btn-a{width:100%;padding:12px;border:none;border-radius:11px;font-size:13px;font-weight:800;color:white;font-family:'Manrope',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,var(--purple),#4B2D8A);box-shadow:0 3px 14px rgba(139,92,246,.28);transition:all .18s;margin-bottom:8px;letter-spacing:.5px;}
+.btn-a:active{transform:scale(.975);}
+.btn-a-red{background:linear-gradient(135deg,var(--red),var(--red-dark));box-shadow:0 3px 14px rgba(200,16,46,.28);}
+.cta{padding:12px 18px 0;display:flex;flex-direction:column;gap:8px;}
+
+/* PROFILE CARD */
+.pc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden;}
+.pc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--red),var(--silver-dim));opacity:.7;}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,8,.96);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;padding:7px 0 max(7px,env(safe-area-inset-bottom));z-index:100;}
+.nitem{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 3px;cursor:pointer;transition:all .2s;border-radius:9px;margin:0 3px;position:relative;}
+.nico{font-size:18px;line-height:1;transition:transform .2s;}
+.nlab{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.5px;}
+.nitem.active .nlab{color:var(--red-light);}
+.nitem.active .nico{transform:scale(1.1);}
+.nbadge{position:absolute;top:2px;right:5px;min-width:13px;height:13px;background:var(--red);border-radius:7px;font-size:8px;font-weight:800;color:white;display:none;align-items:center;justify-content:center;padding:0 3px;border:1.5px solid var(--bg);}
+.nbadge.show{display:flex;}
+
+/* EMPTY */
+.empty{text-align:center;padding:32px 14px;color:var(--dim);}
+.ei{font-size:36px;margin-bottom:9px;}
+.et{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--text);}
+.es{font-size:11px;line-height:1.5;}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(14px);background:rgba(16,16,16,.98);border:1px solid rgba(200,200,210,.15);color:var(--text);padding:8px 18px;border-radius:30px;font-size:11px;font-weight:700;opacity:0;transition:all .26s;pointer-events:none;white-space:nowrap;z-index:1000;letter-spacing:.3px;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ═══════ SUPABASE STATUS ═══════ */
+.db-status{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.5px;}
+.db-dot{width:5px;height:5px;border-radius:50%;}
+.db-ok{background:var(--green);color:var(--green);}
+.db-err{background:var(--red-light);color:var(--red-light);}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="load-logo">
+    <img src="https://i.imgur.com/placeholder.png" id="loadLogoImg" width="72" height="72" style="border-radius:50%;display:none;">
+    <div id="loadLogoFallback" style="width:72px;height:72px;background:linear-gradient(135deg,#C8102E,#9B0D22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:36px;color:#D4AF37;letter-spacing:2px;">P</div>
+  </div>
+  <div class="load-name">PRIMAL EXCHANGE</div>
+  <div class="load-sub">Подключение к базе данных...</div>
+  <div class="load-bar"><div class="load-fill"></div></div>
+</div>
+
+<div class="app">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="hlogo-wrap">
+      <div id="headerLogoFallback" style="width:40px;height:40px;background:linear-gradient(135deg,#C8102E,#9B0D22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:#D4AF37;">P</div>
+      <img id="headerLogoImg" src="" width="40" height="40" style="border-radius:50%;display:none;">
+    </div>
+    <div class="htxt">
+      <h1>PRIMAL EXCHANGE</h1>
+      <span>Обмен юаней</span>
+    </div>
+    <div class="hright">
+      <div class="hstatus"><div class="sdot"></div>ONLINE</div>
+      <div class="hhours">9:00–23:00 МСК</div>
+    </div>
+  </div>
+  <div class="deco"></div>
+  <div class="ticker-wrap"><div class="ticker-inner" id="tickerInner"></div></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('rates')">📈 КУРСЫ</div>
+    <div class="tab" onclick="switchTab('orders')">📋 ЗАЯВКИ</div>
+    <div class="tab" onclick="switchTab('channel')">📣 КАНАЛ</div>
+    <div class="tab" onclick="switchTab('profile')">👤 ПРОФИЛЬ</div>
+  </div>
+
+  <!-- RATES -->
+  <div class="page active" id="page-rates">
+    <div class="sec">
+      <div class="slbl">Нажми на карточку чтобы обменять</div>
+      <div class="lim-banner" id="limBanner">⚖️ Лимит: 300 – 5 000 ¥ за операцию</div>
+
+      <div class="rate-card" onclick="openExchange('rub')">
+        <div class="rc-d">RUB</div>
+        <div class="rpair"><div class="fpair"><div class="flag">🇷🇺</div><div class="flag">🇨🇳</div></div><div><div class="pname">RUB → CNY</div><div class="psub">Рубль → Китайский юань</div></div></div>
+        <div class="rbody"><div><div class="rmain"><span id="rateRub"><span class="rskel"></span></span><span class="curr"> ₽ = 1 ¥</span></div><div class="rsub" id="rateRubSub">загрузка...</div></div><div class="taphint">ОБМЕНЯТЬ →</div></div>
+      </div>
+
+      <div class="rate-card" onclick="openExchange('usd')">
+        <div class="rc-d">USD</div>
+        <div class="rpair"><div class="fpair"><div class="flag">🇺🇸</div><div class="flag">🇨🇳</div></div><div><div class="pname">USD → CNY</div><div class="psub">Доллар → Китайский юань</div></div></div>
+        <div class="rbody"><div><div class="rmain"><span id="rateUsd"><span class="rskel"></span></span><span class="curr"> ¥ за 1 $</span></div><div class="rsub" id="rateUsdSub">загрузка...</div></div><div class="taphint">ОБМЕНЯТЬ →</div></div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chdr"><div class="cttl">RUB/CNY — Динамика</div><div class="ctabs"><div class="ctab active" onclick="switchChart('7d',this)">7Д</div><div class="ctab" onclick="switchChart('30d',this)">30Д</div></div></div>
+        <div class="ctip" id="chartTip">Наведи на график</div>
+        <canvas id="miniChart"></canvas>
+      </div>
+    </div>
+    <div class="cta"><button class="btn-s" onclick="openManager()">💬 Написать менеджеру</button></div>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="page" id="page-orders">
+    <div class="sec"><div class="slbl">Мои заявки</div><div id="ordersList"></div></div>
+    <div class="cta"><button class="btn-p" onclick="openExchange('rub')">➕ Новая заявка</button></div>
+  </div>
+
+  <!-- CHANNEL -->
+  <div class="page" id="page-channel">
+    <div class="ch-hero">
+      <div id="chLogoFallback" style="width:64px;height:64px;background:linear-gradient(135deg,#C8102E,#9B0D22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:28px;color:#D4AF37;margin:0 auto 12px;">P</div>
+      <img id="chLogoImg" src="" width="64" height="64" class="ch-logoimg" style="display:none;">
+      <div class="chn">PRIMAL EXCHANGE</div>
+      <div class="chd">Актуальные курсы юаня и выгодные условия обмена каждый день</div>
+      <div class="chst">
+        <div><div class="stv">9–23</div><div class="stl">МСК</div></div>
+        <div><div class="stv">90′</div><div class="stl">ОБРАБОТКА</div></div>
+        <div><div class="stv">0%</div><div class="stl">СКРЫТЫХ</div></div>
+      </div>
+      <button class="btn-tg" onclick="openLink('https://t.me/Trustex_China')">✈️ Подписаться на канал</button>
+    </div>
+    <div class="icards">
+      <div class="icard"><div class="iico">📊</div><div><div class="itt">Курсы каждый день</div><div class="itx">Публикуем актуальные курсы юаня утром и при значительных изменениях рынка</div></div></div>
+      <div class="icard"><div class="iico">⚡</div><div><div class="itt">Быстрый обмен</div><div class="itx">Обработка заявок до 90 минут. Работаем с физлицами и юрлицами</div></div></div>
+      <div class="icard"><div class="iico">🔒</div><div><div class="itt">Безопасно</div><div class="itx">База данных Supabase. Все операции зашифрованы и подтверждены документально</div></div></div>
+    </div>
+    <div class="cta"><button class="btn-p" onclick="openManager()">💬 Написать менеджеру</button></div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="page" id="page-profile">
+    <div class="sec"><div class="slbl">Мой профиль</div><div id="profileContent"></div></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <div class="nitem active" id="nav-rates" onclick="switchTab('rates')"><div class="nico">📈</div><div class="nlab">КУРСЫ</div></div>
+  <div class="nitem" id="nav-orders" onclick="switchTab('orders')"><div class="nico">📋</div><div class="nlab">ЗАЯВКИ</div><div class="nbadge" id="ordersBadge"></div></div>
+  <div class="nitem" id="nav-channel" onclick="switchTab('channel')"><div class="nico">📣</div><div class="nlab">КАНАЛ</div></div>
+  <div class="nitem" id="nav-profile" onclick="switchTab('profile')"><div class="nico">👤</div><div class="nlab">ПРОФИЛЬ</div></div>
+</div>
+
+<!-- EXCHANGE MODAL -->
+<div class="ov" id="exchangeModal">
+  <div class="sheet">
+    <div class="shandle"></div>
+    <div class="shdr"><div class="sttl" id="mTitle">ОБМЕН</div><div class="sclose" onclick="closeExchange()">✕</div></div>
+    <div class="sbody">
+      <div class="mpinfo"><div class="mplbl" id="mPairLbl">Курс</div><div class="mprate" id="mPairRate">—</div></div>
+      <div class="mlim"><span>МИН: <span id="mlimMin">300</span> ¥</span><span>МАКС: <span id="mlimMax">5 000</span> ¥</span></div>
+      <div class="milbl" id="mInputLbl">Сумма</div>
+      <input class="minput" id="mInput" type="number" inputmode="decimal" placeholder="0" oninput="modalCalc()">
+      <div class="lim-err" id="mLimitErr"></div>
+      <div class="mres"><div class="mrlab">🇨🇳 Получите юаней</div><div class="mrval" id="mOutput">—</div></div>
+    </div>
+    <div class="mcta">
+      <button class="btn-p" id="mBtn" onclick="proceedToContact()" disabled>ПРОДОЛЖИТЬ →</button>
+      <button class="btn-s" onclick="closeExchange()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT SCREEN -->
+<div class="fscreen" id="contactScreen">
+  <div class="fshdr"><div class="fsback" onclick="closeContact()">←</div><div class="fstitle">ОФОРМИТЬ ЗАЯВКУ</div></div>
+  <div class="fsbody">
+    <div class="cssum">
+      <div style="font-size:9px;color:rgba(200,200,210,.5);font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:9px;">Детали обмена</div>
+      <div class="csrow"><span class="csk">Направление</span><span class="csv" id="csPair">—</span></div>
+      <div class="csrow"><span class="csk">Отдаёте</span><span class="csv" id="csGive">—</span></div>
+      <div class="csrow"><span class="csk">Получаете</span><span class="csv big" id="csGet">—</span></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:13px;display:flex;align-items:center;gap:11px;">
+      <div style="width:42px;height:42px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;">👨‍💼</div>
+      <div><div style="font-size:13px;font-weight:700;">@semyonyaho</div><div style="font-size:10px;color:var(--dim);">Менеджер · 9:00–23:00 МСК · до 90 мин</div></div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:13px;font-size:11px;color:var(--dim);line-height:1.5;">📌 Откроется Telegram с готовым сообщением. Отправьте его — менеджер свяжется с вами.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn-p" onclick="submitOrder()">✅ Отправить заявку</button>
+      <button class="btn-s" onclick="closeContact()">← Изменить сумму</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH SHEET -->
+<div class="auth-ov" id="authOv">
+  <div class="auth-sheet">
+    <div class="ah"></div>
+    <div class="alogo-wrap">
+      <div id="authLogoFallback" style="width:44px;height:44px;background:linear-gradient(135deg,#C8102E,#9B0D22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:#D4AF37;">P</div>
+      <img id="authLogoImg" src="" style="width:44px;height:44px;border-radius:50%;display:none;">
+    </div>
+    <div class="atit" id="authTitle">ВОЙТИ</div>
+    <div class="asub">Введите ваш Telegram username</div>
+    <div class="asegs">
+      <div class="aseg active" id="aseg-login" onclick="setAuthMode('login')">Войти</div>
+      <div class="aseg" id="aseg-reg" onclick="setAuthMode('reg')">Регистрация</div>
+    </div>
+    <!-- LOGIN -->
+    <div id="loginForm">
+      <div class="afield"><label class="albl">Telegram username</label><input class="ainp" id="loginUsername" type="text" placeholder="@username"><div class="aerr" id="loginErr">Аккаунт не найден. Зарегистрируйтесь.</div></div>
+      <div class="afield"><label class="albl">Пароль</label><input class="ainp" id="loginPass" type="password" placeholder="Ваш пароль"><div class="aerr" id="loginPassErr">Неверный пароль.</div></div>
+      <button class="btn-p" id="loginBtn" onclick="doLogin()">ВОЙТИ →</button>
+    </div>
+    <!-- REG -->
+    <div id="regForm" style="display:none;">
+      <div class="afield"><label class="albl">Telegram username</label><input class="ainp" id="regUsername" type="text" placeholder="@username"><div class="aerr" id="regUsernameErr">Минимум 5 символов</div></div>
+      <div class="afield"><label class="albl">Ваше имя</label><input class="ainp" id="regName" type="text" placeholder="Как вас зовут?"><div class="aerr" id="regNameErr">Введите имя</div></div>
+      <div class="afield"><label class="albl">Пароль</label><input class="ainp" id="regPass" type="password" placeholder="Минимум 6 символов"><div class="aerr" id="regPassErr">Минимум 6 символов</div></div>
+      <div class="afield"><label class="albl">Повторите пароль</label><input class="ainp" id="regPass2" type="password" placeholder="Ещё раз"></div>
+      <button class="btn-p" id="regBtn" onclick="doRegister()">ЗАРЕГИСТРИРОВАТЬСЯ →</button>
+    </div>
+    <div class="aclo"><a onclick="closeAuth()">Закрыть</a></div>
+  </div>
+</div>
+
+<!-- WELCOME -->
+<div class="wov" id="welcomeOv">
+  <div id="wLogoFallback" style="width:80px;height:80px;background:linear-gradient(135deg,#C8102E,#9B0D22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:36px;color:#D4AF37;margin-bottom:16px;box-shadow:0 0 40px rgba(200,16,46,.4);">P</div>
+  <img id="wLogoImg" src="" style="width:80px;height:80px;border-radius:50%;display:none;margin-bottom:16px;box-shadow:0 0 40px rgba(200,16,46,.4);">
+  <div class="wt">ДОБРО ПОЖАЛОВАТЬ, <span class="wn" id="wName">!</span></div>
+  <div class="ws">Вы зарегистрированы в Primal Exchange</div>
+  <div class="wtg"><div style="font-size:18px;">✈️</div><div><div style="font-size:9px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Аккаунт</div><div style="font-size:14px;font-weight:700;" id="wUsername">—</div></div></div>
+  <button class="btn-p" style="max-width:280px;width:100%;" onclick="closeWelcome()">НАЧАТЬ ОБМЕН →</button>
+</div>
+
+<!-- ═══════════════════════════════════
+     ADMIN PANEL
+═══════════════════════════════════ -->
+<div class="adm-ov" id="adminPanel">
+  <div class="adm-top">
+    <div id="admLogoFallback" class="adm-logo" style="background:linear-gradient(135deg,#C8102E,#9B0D22);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:14px;color:#D4AF37;">P</div>
+    <img id="admLogoImg" src="" class="adm-logo" style="display:none;">
+    <div class="adm-ttl">PRIMAL PANEL</div>
+    <div class="adm-role" id="adminRoleBadge">ADMIN</div>
+    <div class="adm-close" onclick="closeAdmin()">✕</div>
+  </div>
+  <div class="adm-tabs">
+    <div class="adm-tab active" onclick="switchAdminPanel('dash')">📊 ДАШБОРД</div>
+    <div class="adm-tab" onclick="switchAdminPanel('orders')">📋 ЗАЯВКИ <span class="abadge" id="newOrdBadge" style="display:none">0</span></div>
+    <div class="adm-tab" onclick="switchAdminPanel('users')">👥 ЮЗЕРЫ</div>
+    <div class="adm-tab" onclick="switchAdminPanel('settings')">⚙️ НАСТРОЙКИ</div>
+  </div>
+  <div class="adm-body">
+
+    <!-- DASH -->
+    <div class="apanel active" id="apanel-dash">
+      <div class="aptitle">Обзор системы</div>
+      <div class="sgrid" id="statsGrid"></div>
+      <div class="act-wrap"><div class="act-ttl">Активность — 7 дней</div><div class="bar-ch" id="actChart"></div></div>
+      <div class="aptitle" style="margin-top:4px;">Последние заявки</div>
+      <div id="recentOrders"></div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="apanel" id="apanel-orders">
+      <div class="aptitle">Все заявки</div>
+      <div class="frow">
+        <div class="fb active" onclick="fOrd('all',this)">Все</div>
+        <div class="fb" onclick="fOrd('new',this)">Новые</div>
+        <div class="fb" onclick="fOrd('pending',this)">В работе</div>
+        <div class="fb" onclick="fOrd('done',this)">Готово</div>
+        <div class="fb" onclick="fOrd('cancelled',this)">Отменены</div>
+      </div>
+      <input class="srch" id="ordSearch" type="text" placeholder="🔍 Поиск по username / сумме..." oninput="renderAdminOrders()">
+      <div id="adminOrdersList"></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="apanel" id="apanel-users">
+      <div class="aptitle">Пользователи</div>
+      <div class="frow">
+        <div class="fb active" onclick="fUsr('all',this)">Все</div>
+        <div class="fb" onclick="fUsr('active',this)">Активные</div>
+        <div class="fb" onclick="fUsr('blocked',this)">Блок</div>
+        <div class="fb" onclick="fUsr('staff',this)">Персонал</div>
+      </div>
+      <input class="srch" id="usrSearch" type="text" placeholder="🔍 Поиск..." oninput="renderAdminUsers()">
+      <div id="adminUsersList"></div>
+      <div style="margin-top:12px;">
+        <div style="font-size:9px;color:var(--dim);font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Добавить пользователя вручную</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <input class="sinp" id="manUsername" type="text" placeholder="@username" style="width:100%;text-align:left;padding:8px 11px;">
+          <input class="sinp" id="manName" type="text" placeholder="Имя пользователя" style="width:100%;text-align:left;padding:8px 11px;">
+          <button class="btn-a" style="margin-bottom:0;" onclick="addUserManually()">➕ Добавить в базу</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="apanel" id="apanel-settings">
+      <div class="aptitle">Настройки обменника</div>
+
+      <div class="ss" style="border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.04);">
+        <div class="ss-ttl" style="color:var(--orange);">⚠️ База данных</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:10px;">
+          Пользователи хранятся в <b style="color:var(--text);">Supabase</b>. Все видны из любого устройства. Укажи ключи ниже в коде и они появятся автоматически.
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;" id="dbStatusRow">
+          <div class="db-status db-err"><div class="db-dot db-err"></div><span>Не подключено</span></div>
+        </div>
+      </div>
+
+      <div class="ss">
+        <div class="ss-ttl">Лимиты (юани)</div>
+        <div class="sr"><div><div class="sr-lbl">Минимум ¥</div><div class="sr-sub">За одну заявку</div></div><input class="sinp" id="sCnyMin" type="number" value="300"></div>
+        <div class="sr"><div><div class="sr-lbl">Максимум ¥</div><div class="sr-sub">За одну заявку</div></div><input class="sinp" id="sCnyMax" type="number" value="5000"></div>
+      </div>
+      <div class="ss">
+        <div class="ss-ttl">Комиссия к курсу ЦБ</div>
+        <div class="sr"><div><div class="sr-lbl">RUB→CNY (%)</div></div><input class="sinp" id="sMarkupRub" type="number" value="10"></div>
+        <div class="sr"><div><div class="sr-lbl">USD→CNY (%)</div></div><input class="sinp" id="sMarkupUsd" type="number" value="5"></div>
+      </div>
+      <div class="ss">
+        <div class="ss-ttl">Режим работы</div>
+        <div class="sr"><div><div class="sr-lbl">Приём заявок</div></div><div class="toggle on" id="togOrders" onclick="this.classList.toggle('on')"></div></div>
+        <div class="sr"><div><div class="sr-lbl">Регистрация</div></div><div class="toggle on" id="togReg" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="ss">
+        <div class="ss-ttl">Назначить модератора</div>
+        <div style="display:flex;gap:7px;margin-top:4px;">
+          <input class="sinp" id="newStaffUser" type="text" placeholder="@username" style="flex:1;width:auto;text-align:left;padding:7px 11px;">
+          <button class="btn-a" style="width:auto;padding:7px 13px;font-size:11px;margin-bottom:0;" onclick="addStaff()">+ Назначить</button>
+        </div>
+      </div>
+
+      <button class="btn-a" onclick="saveAdminSettings()">💾 Сохранить настройки</button>
+      <button class="btn-a btn-a-red" onclick="exportData()">📥 Экспорт JSON</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+  JAVASCRIPT
+═══════════════════════════════════════════════════════ -->
+<script>
+// ╔══════════════════════════════════════════╗
+// ║  🔧 КОНФИГУРАЦИЯ — ИЗМЕНИ ЭТИ ЗНАЧЕНИЯ  ║
+// ╚══════════════════════════════════════════╝
+const SUPABASE_URL  = 'ВСТАВЬ_СВОЙ_PROJECT_URL';       // https://xxxxx.supabase.co
+const SUPABASE_KEY  = 'ВСТАВЬ_СВОЙ_ANON_KEY';          // eyJhbGci...
+
+const MANAGER       = 'semyonyaho';                    // username менеджера без @
+const CHANNEL_URL   = 'https://t.me/Trustex_China';
+
+// Список администраторов: username → пароль
+const ADMIN_LIST = {
+  '@semyonyaho': 'admin2025primal'
+  // Добавляй сюда: '@другой_admin': 'пароль'
+};
+
+// Логотип — вставь прямую ссылку на изображение
+// Если загрузишь на GitHub или Imgur, вставь URL сюда
+const LOGO_URL = '';  // например: 'https://i.imgur.com/ABC123.png'
+
+// ╔═══════════════════════════════╗
+// ║  SUPABASE CLIENT              ║
+// ╚═══════════════════════════════╝
+let sb = null;
+let isSupabaseReady = false;
+
+function initSupabase() {
+  try {
+    if (SUPABASE_URL.includes('ВСТАВЬ') || SUPABASE_KEY.includes('ВСТАВЬ')) {
+      console.warn('Supabase не настроен — работаем в режиме localStorage');
+      return false;
+    }
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    isSupabaseReady = true;
+    return true;
+  } catch(e) {
+    console.warn('Supabase init error:', e.message);
+    return false;
+  }
+}
+
+// ╔═══════════════════════════════╗
+// ║  UNIVERSAL DB LAYER           ║
+// ║  Supabase если настроен,      ║
+// ║  localStorage как fallback    ║
+// ╚═══════════════════════════════╝
+const LS = {
+  getDB:    ()=>{ try{return JSON.parse(localStorage.getItem('primal_db_v1'))||{};}catch(_){return{};}},
+  saveDB:   d=> localStorage.setItem('primal_db_v1', JSON.stringify(d)),
+  getOrds:  ()=>{ try{return JSON.parse(localStorage.getItem('primal_ord_v1'))||[];}catch(_){return[];}},
+  saveOrds: o=> localStorage.setItem('primal_ord_v1', JSON.stringify(o)),
+  getSets:  ()=>{ try{return JSON.parse(localStorage.getItem('primal_set_v1'))||{};}catch(_){return{};}},
+  saveSets: s=> localStorage.setItem('primal_set_v1', JSON.stringify(s)),
+};
+
+// ─── USERS ───
+async function dbGetUsers() {
+  if (isSupabaseReady) {
+    const {data,error} = await sb.from('users').select('*').order('created_at',{ascending:false});
+    if (!error) return data || [];
+  }
+  const db = LS.getDB();
+  return Object.entries(db).map(([username,u])=>({username,...u}));
+}
+async function dbGetUser(username) {
+  if (isSupabaseReady) {
+    const {data} = await sb.from('users').select('*').eq('username', username).single();
+    return data || null;
+  }
+  const db = LS.getDB();
+  const found = Object.keys(db).find(k=>k.toLowerCase()===username.toLowerCase());
+  return found ? {username:found,...db[found]} : null;
+}
+async function dbCreateUser(username, name, password) {
+  const now = new Date().toISOString();
+  if (isSupabaseReady) {
+    const {data,error} = await sb.from('users').insert({username,name,password_hash:password,role:'user',blocked:false,created_at:now}).select().single();
+    return {ok: !error, error: error?.message};
+  }
+  const db = LS.getDB();
+  if (Object.keys(db).find(k=>k.toLowerCase()===username.toLowerCase())) return {ok:false,error:'exists'};
+  db[username]={name,password,role:'user',blocked:false,registeredAt:now};
+  LS.saveDB(db);
+  return {ok:true};
+}
+async function dbUpdateUser(username, updates) {
+  if (isSupabaseReady) {
+    await sb.from('users').update(updates).eq('username', username);
+    return;
+  }
+  const db = LS.getDB();
+  const found = Object.keys(db).find(k=>k.toLowerCase()===username.toLowerCase());
+  if (found) { Object.assign(db[found], updates); LS.saveDB(db); }
+}
+async function dbDeleteUser(username) {
+  if (isSupabaseReady) {
+    await sb.from('users').delete().eq('username', username);
+    return;
+  }
+  const db = LS.getDB();
+  const found = Object.keys(db).find(k=>k.toLowerCase()===username.toLowerCase());
+  if (found) { delete db[found]; LS.saveDB(db); }
+}
+
+// ─── ORDERS ───
+async function dbGetOrders(filter={}) {
+  if (isSupabaseReady) {
+    let q = sb.from('orders').select('*').order('created_at',{ascending:false});
+    if (filter.username) q = q.eq('username', filter.username);
+    if (filter.status)   q = q.eq('status', filter.status);
+    const {data} = await q;
+    return data || [];
+  }
+  let ords = LS.getOrds();
+  if (filter.username) ords = ords.filter(o=>o.username===filter.username);
+  if (filter.status)   ords = ords.filter(o=>o.status===filter.status);
+  return ords;
+}
+async function dbCreateOrder(order) {
+  if (isSupabaseReady) {
+    const {data,error} = await sb.from('orders').insert({
+      username:    order.username,
+      name:        order.name,
+      pair:        order.pair,
+      give_str:    order.give,
+      get_str:     order.get,
+      cny_amount:  order.cny||0,
+      status:      'new',
+      created_at:  new Date().toISOString()
+    }).select().single();
+    return data;
+  }
+  const ord = {id:Date.now(), ...order, status:'new', createdAt:new Date().toISOString()};
+  const ords = LS.getOrds(); ords.unshift(ord); LS.saveOrds(ords);
+  return ord;
+}
+async function dbUpdateOrder(id, updates) {
+  if (isSupabaseReady) {
+    await sb.from('orders').update(updates).eq('id', id);
+    return;
+  }
+  const ords = LS.getOrds();
+  const idx = ords.findIndex(o=>String(o.id)===String(id));
+  if (idx!==-1) { Object.assign(ords[idx], updates); LS.saveOrds(ords); }
+}
+
+// ─── SETTINGS ───
+async function dbGetSettings() {
+  if (isSupabaseReady) {
+    const {data} = await sb.from('settings').select('*');
+    if (data) {
+      const s={};
+      data.forEach(row=>{ try{s[row.key]=JSON.parse(row.value);}catch(_){s[row.key]=row.value;} });
+      return s;
+    }
+  }
+  return LS.getSets();
+}
+async function dbSaveSettings(settings) {
+  if (isSupabaseReady) {
+    for (const [key,value] of Object.entries(settings)) {
+      await sb.from('settings').upsert({key, value: JSON.stringify(value)});
+    }
+    return;
+  }
+  LS.saveSets(settings);
+}
+
+// ╔═══════════════════════════════╗
+// ║  STATE                        ║
+// ╚═══════════════════════════════╝
+let rates = {rubPerCny:null, cnyPerUsd:null};
+let currentPair='rub', currentOrder={}, afterAuth=null, authMode='login';
+let chartData=[], chartPeriod='7d', tickerRAF=null, tickerX=0;
+let ordFilter='all', usrFilter='all';
+let currentUser = null; // кешируем пользователя
+let CNY_MIN=300, CNY_MAX=5000;
+let globalSettings = {};
+
+const tg = window.Telegram?.WebApp;
+if (tg){ tg.ready(); tg.expand(); try{tg.setHeaderColor('#080808');tg.setBackgroundColor('#080808');}catch(_){} }
+
+// ╔═══════════════════════════════╗
+// ║  LOGO                         ║
+// ╚═══════════════════════════════╝
+function applyLogo(url) {
+  if (!url) return;
+  // Применяем логотип везде
+  [
+    ['headerLogoImg','headerLogoFallback'],
+    ['loadLogoImg','loadLogoFallback'],
+    ['chLogoImg','chLogoFallback'],
+    ['authLogoImg','authLogoFallback'],
+    ['wLogoImg','wLogoFallback'],
+    ['admLogoImg','admLogoFallback'],
+  ].forEach(([imgId, fbId])=>{
+    const img = document.getElementById(imgId);
+    const fb  = document.getElementById(fbId);
+    if (img && fb) {
+      img.src = url;
+      img.onload = ()=>{ img.style.display='block'; if(fb)fb.style.display='none'; };
+    }
+  });
+}
+
+// ╔═══════════════════════════════╗
+// ║  INIT                         ║
+// ╚═══════════════════════════════╝
+async function init() {
+  // Применяем логотип
+  if (LOGO_URL) applyLogo(LOGO_URL);
+
+  // Инициализируем Supabase
+  const sbReady = initSupabase();
+  updateDbStatus(sbReady);
+
+  // Загружаем настройки из базы
+  try {
+    globalSettings = await dbGetSettings();
+    if (globalSettings.cny_min) CNY_MIN = +globalSettings.cny_min;
+    if (globalSettings.cny_max) CNY_MAX = +globalSettings.cny_max;
+    document.getElementById('mlimMin').textContent = CNY_MIN;
+    document.getElementById('mlimMax').textContent = CNY_MAX.toLocaleString('ru');
+    document.getElementById('limBanner').textContent = `⚖️ Лимит: ${CNY_MIN} – ${CNY_MAX.toLocaleString('ru')} ¥ за операцию`;
+  } catch(_) {}
+
+  // Проверяем сессию пользователя
+  const savedUsername = localStorage.getItem('primal_session_v1');
+  if (savedUsername) {
+    try {
+      currentUser = await dbGetUser(savedUsername);
+    } catch(_) { currentUser = null; }
+  }
+
+  // TG автологин только если аккаунт уже есть в базе
+  if (!currentUser && tg?.initDataUnsafe?.user?.username) {
+    const tgU = '@' + tg.initDataUnsafe.user.username;
+    try {
+      const u = await dbGetUser(tgU);
+      if (u) { currentUser = u; localStorage.setItem('primal_session_v1', tgU); }
+    } catch(_) {}
+  }
+
+  // Скрываем загрузку
+  const ls = document.getElementById('loadingScreen');
+  ls.classList.add('hide');
+  setTimeout(()=>ls.style.display='none', 400);
+
+  // Загружаем курсы
+  fetchRates();
+  setInterval(fetchRates, 5*60*1000);
+
+  renderProfile();
+  renderOrders();
+  updateBadge();
+  setupChartEvents();
+}
+
+function updateDbStatus(ok) {
+  const row = document.getElementById('dbStatusRow');
+  if (!row) return;
+  row.innerHTML = ok
+    ? `<div class="db-status db-ok"><div class="db-dot db-ok"></div><span style="color:var(--green);">Supabase подключён ✓</span></div>`
+    : `<div class="db-status db-err"><div class="db-dot db-err"></div><span style="color:var(--red-light);">localStorage (вставь ключи Supabase)</span></div>`;
+}
+
+// ╔═══════════════════════════════╗
+// ║  TABS                         ║
+// ╚═══════════════════════════════╝
+const TIDX={rates:0,orders:1,channel:2,profile:3};
+function switchTab(t){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+t).classList.add('active');
+  document.getElementById('nav-'+t).classList.add('active');
+  document.querySelectorAll('.tab')[TIDX[t]].classList.add('active');
+  if(t==='profile')renderProfile();
+  if(t==='orders')renderOrders();
+}
+
+// ╔═══════════════════════════════╗
+// ║  RATES                        ║
+// ╚═══════════════════════════════╝
+async function fetchRates(){
+  if(!await tryFetchCBR()) if(!await tryFallback()) useStatic();
+}
+async function tryFetchCBR(){
+  for(const url of [
+    'https://www.cbr-xml-daily.ru/daily_json.js',
+    'https://corsproxy.io/?'+encodeURIComponent('https://www.cbr-xml-daily.ru/daily_json.js')
+  ]){
+    try{
+      const r=await fetch(url,{signal:AbortSignal.timeout(6000)});
+      if(!r.ok)continue;
+      const d=await r.json();
+      const mRub=((globalSettings.markup_rub??10)/100)+1;
+      const mUsd=(globalSettings.markup_usd??5)/100;
+      const rubPerCny=d.Valute.CNY.Value/d.Valute.CNY.Nominal;
+      rates.rubPerCny=rubPerCny*mRub;
+      rates.cnyPerUsd=(d.Valute.USD.Value/rubPerCny)*(1-mUsd);
+      updateRateUI();buildTicker();buildChartData();drawChart();
+      return true;
+    }catch(_){}
+  }
+  return false;
+}
+async function tryFallback(){
+  try{
+    const r=await fetch('https://api.frankfurter.app/latest?from=USD&to=CNY,RUB',{signal:AbortSignal.timeout(6000)});
+    if(!r.ok)return false;
+    const d=await r.json();
+    const mRub=((globalSettings.markup_rub??10)/100)+1;
+    const mUsd=(globalSettings.markup_usd??5)/100;
+    const rubPerCny=d.rates.RUB/d.rates.CNY;
+    rates.rubPerCny=rubPerCny*mRub;
+    rates.cnyPerUsd=d.rates.CNY*(1-mUsd);
+    updateRateUI();buildTicker();buildChartData();drawChart();
+    return true;
+  }catch(_){return false;}
+}
+function useStatic(){
+  rates.rubPerCny=10.90*1.10; rates.cnyPerUsd=6.80*0.95;
+  updateRateUI();buildTicker();buildChartData();drawChart();
+  showToast('⚠️ Показан приблизительный курс');
+}
+function updateRateUI(){
+  const ts=new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  if(rates.rubPerCny){document.getElementById('rateRub').textContent=rates.rubPerCny.toFixed(2);document.getElementById('rateRubSub').textContent='⏱ Обновлено в '+ts;}
+  if(rates.cnyPerUsd){document.getElementById('rateUsd').textContent=rates.cnyPerUsd.toFixed(2);document.getElementById('rateUsdSub').textContent='⏱ Обновлено в '+ts;}
+}
+
+// TICKER
+function buildTicker(){
+  if(!rates.rubPerCny)return;
+  const items=[
+    {l:'RUB/CNY',v:rates.rubPerCny.toFixed(2)+' ₽',chg:gc(),up:Math.random()>.45},
+    {l:'USD/CNY',v:rates.cnyPerUsd.toFixed(2)+' ¥',chg:gc(),up:Math.random()>.45},
+    {l:'РАБОТАЕМ',v:'9:00–23:00 МСК',chg:'',up:true},
+    {l:'ОБРАБОТКА',v:'ДО 90 МИН',chg:'',up:true},
+    {l:'ЛИМИТ',v:`${CNY_MIN}–${CNY_MAX.toLocaleString('ru')} ¥`,chg:'',up:true},
+    {l:'КАНАЛ',v:'@Trustex_China',chg:'',up:true},
+  ];
+  const html=items.map(i=>`<div class="t-item"><span class="t-p">${i.l}</span>&nbsp;<span class="t-v">${i.v}</span>${i.chg?`&nbsp;<span class="${i.up?'t-up':'t-dn'}">${i.up?'▲':'▼'}${i.chg}%</span>`:''}</div>`).join('');
+  const el=document.getElementById('tickerInner');
+  el.innerHTML=html+html;
+  if(tickerRAF)cancelAnimationFrame(tickerRAF);
+  tickerX=0;
+  function step(){tickerX-=0.5;const h=el.scrollWidth/2;if(Math.abs(tickerX)>=h)tickerX=0;el.style.transform=`translateX(${tickerX}px)`;tickerRAF=requestAnimationFrame(step);}
+  tickerRAF=requestAnimationFrame(step);
+}
+function gc(){return(Math.random()*0.35+0.02).toFixed(2);}
+
+// CHART
+function buildChartData(){
+  if(!rates.rubPerCny)return;
+  const base=rates.rubPerCny;chartData=[];let v=base*0.96;
+  for(let i=0;i<30;i++){v+=(Math.random()-.47)*base*.006;v=Math.max(base*.88,Math.min(base*1.12,v));chartData.push(+v.toFixed(3));}
+  chartData[chartData.length-1]=+base.toFixed(3);
+}
+function switchChart(p,el){chartPeriod=p;document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));el.classList.add('active');drawChart();}
+function drawChart(){
+  if(!chartData.length)return;
+  const canvas=document.getElementById('miniChart');
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.parentElement.clientWidth-28;const h=88;
+  canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const pts=chartPeriod==='7d'?chartData.slice(-7):chartData;
+  if(pts.length<2)return;
+  const mn=Math.min(...pts),mx=Math.max(...pts),pad=(mx-mn)*.2||.1;
+  const lo=mn-pad,hi=mx+pad;
+  const xS=w/(pts.length-1);
+  const toX=i=>i*xS,toY=v=>h-(v-lo)/(hi-lo)*h;
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'rgba(200,16,46,.28)');grad.addColorStop(1,'rgba(200,16,46,0)');
+  ctx.beginPath();ctx.moveTo(toX(0),toY(pts[0]));pts.forEach((p,i)=>{if(i>0)ctx.lineTo(toX(i),toY(p));});
+  ctx.lineTo(toX(pts.length-1),h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.moveTo(toX(0),toY(pts[0]));pts.forEach((p,i)=>{if(i>0)ctx.lineTo(toX(i),toY(p));});
+  ctx.strokeStyle='#C8102E';ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+  ctx.beginPath();ctx.arc(toX(pts.length-1),toY(pts[pts.length-1]),4,0,Math.PI*2);ctx.fillStyle='#C8C8CC';ctx.fill();
+  canvas._pts=pts;canvas._lo=lo;canvas._hi=hi;canvas._w=w;canvas._h=h;
+}
+function setupChartEvents(){
+  const canvas=document.getElementById('miniChart');
+  const tip=document.getElementById('chartTip');
+  function show(cx){
+    if(!canvas._pts)return;
+    const rect=canvas.getBoundingClientRect();
+    const x=cx-rect.left,pts=canvas._pts;
+    const idx=Math.max(0,Math.min(pts.length-1,Math.round(x/(canvas._w/(pts.length-1)))));
+    const val=pts[idx],ago=pts.length-1-idx;
+    tip.textContent=`${ago===0?'Сейчас':ago===1?'Вчера':ago+' дн. назад'}: ${val.toFixed(2)} ₽ за 1 ¥`;
+    const dpr=window.devicePixelRatio||1;
+    const ctx=canvas.getContext('2d');
+    drawChart();
+    const xS=canvas._w/(pts.length-1);
+    const toY=v=>canvas._h-(v-canvas._lo)/(canvas._hi-canvas._lo)*canvas._h;
+    ctx.save();ctx.scale(dpr,dpr);
+    ctx.beginPath();ctx.moveTo(idx*xS,0);ctx.lineTo(idx*xS,canvas._h);
+    ctx.strokeStyle='rgba(200,200,210,.3)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.stroke();
+    ctx.beginPath();ctx.arc(idx*xS,toY(val),5,0,Math.PI*2);ctx.fillStyle='#C8C8CC';ctx.fill();ctx.restore();
+  }
+  canvas.addEventListener('mousemove',e=>show(e.clientX));
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();show(e.touches[0].clientX);},{passive:false});
+  canvas.addEventListener('mouseleave',()=>{tip.textContent='Наведи на график';drawChart();});
+  canvas.addEventListener('touchend',()=>{tip.textContent='Наведи на график';drawChart();});
+}
+
+// ╔═══════════════════════════════╗
+// ║  EXCHANGE                     ║
+// ╚═══════════════════════════════╝
+function openExchange(pair){
+  if(currentUser?.blocked){showToast('🚫 Аккаунт заблокирован');return;}
+  if(globalSettings.orders_enabled===false||globalSettings.orders_enabled==='false'){showToast('⏸ Приём заявок приостановлен');return;}
+  currentPair=pair;
+  document.getElementById('mInput').value='';
+  document.getElementById('mOutput').textContent='—';
+  document.getElementById('mLimitErr').textContent='';
+  document.getElementById('mInput').classList.remove('err-b');
+  document.getElementById('mBtn').disabled=true;
+  if(pair==='rub'){
+    document.getElementById('mTitle').textContent='RUB → CNY';
+    document.getElementById('mPairLbl').textContent='Рублей за 1 юань';
+    document.getElementById('mPairRate').textContent=(rates.rubPerCny?.toFixed(2)??'—')+' ₽';
+    document.getElementById('mInputLbl').textContent='Сумма в рублях (₽)';
+    document.getElementById('mInput').placeholder='например 5 000';
+  }else{
+    document.getElementById('mTitle').textContent='USD → CNY';
+    document.getElementById('mPairLbl').textContent='Юаней за 1 доллар';
+    document.getElementById('mPairRate').textContent=(rates.cnyPerUsd?.toFixed(2)??'—')+' ¥';
+    document.getElementById('mInputLbl').textContent='Сумма в долларах ($)';
+    document.getElementById('mInput').placeholder='например 500';
+  }
+  document.getElementById('exchangeModal').classList.add('open');
+  setTimeout(()=>document.getElementById('mInput').focus(),300);
+}
+function closeExchange(){document.getElementById('exchangeModal').classList.remove('open');}
+function modalCalc(){
+  const val=parseFloat(document.getElementById('mInput').value);
+  const out=document.getElementById('mOutput'),btn=document.getElementById('mBtn'),
+        err=document.getElementById('mLimitErr'),inp=document.getElementById('mInput');
+  err.textContent='';inp.classList.remove('err-b');
+  if(!val||val<=0||!rates.rubPerCny){out.textContent='—';btn.disabled=true;return;}
+  const cny=currentPair==='rub'?val/rates.rubPerCny:val*rates.cnyPerUsd;
+  if(cny<CNY_MIN){
+    const ms=currentPair==='rub'?(CNY_MIN*rates.rubPerCny).toFixed(0)+' ₽':(CNY_MIN/rates.cnyPerUsd).toFixed(2)+' $';
+    err.textContent=`Минимум ${CNY_MIN} ¥ (≈ ${ms})`;inp.classList.add('err-b');out.textContent='—';btn.disabled=true;return;
+  }
+  if(cny>CNY_MAX){
+    const ms=currentPair==='rub'?(CNY_MAX*rates.rubPerCny).toFixed(0)+' ₽':(CNY_MAX/rates.cnyPerUsd).toFixed(2)+' $';
+    err.textContent=`Максимум ${CNY_MAX} ¥ (≈ ${ms})`;inp.classList.add('err-b');out.textContent='—';btn.disabled=true;return;
+  }
+  const str=cny.toFixed(2)+' ¥';out.textContent=str;
+  currentOrder={pair:currentPair,give:val,giveStr:val+(currentPair==='rub'?' ₽':' $'),getStr:str,cny};
+  btn.disabled=false;
+}
+function proceedToContact(){
+  closeExchange();
+  document.getElementById('csPair').textContent=currentPair==='rub'?'RUB → CNY':'USD → CNY';
+  document.getElementById('csGive').textContent=currentOrder.giveStr;
+  document.getElementById('csGet').textContent=currentOrder.getStr;
+  document.getElementById('contactScreen').classList.add('open');
+}
+function closeContact(){document.getElementById('contactScreen').classList.remove('open');document.getElementById('exchangeModal').classList.add('open');}
+
+// ╔═══════════════════════════════╗
+// ║  SUBMIT ORDER                 ║
+// ╚═══════════════════════════════╝
+async function submitOrder(){
+  if(!currentUser){afterAuth=submitOrder;document.getElementById('contactScreen').classList.remove('open');openAuth();return;}
+  if(currentUser.blocked){showToast('🚫 Аккаунт заблокирован');document.getElementById('contactScreen').classList.remove('open');return;}
+  const order={
+    pair:currentPair==='rub'?'RUB → CNY':'USD → CNY',
+    give:currentOrder.giveStr,
+    get:currentOrder.getStr,
+    cny:currentOrder.cny,
+    username:currentUser.username,
+    name:currentUser.name,
+  };
+  const saved = await dbCreateOrder(order);
+  const msg=`🔔 Новая заявка Primal Exchange\n\n👤 Клиент: ${currentUser.username} (${currentUser.name})\n💱 ${order.pair}\n💸 Отдаёт: ${order.give}\n✅ Получает: ${order.get}\n📅 ${new Date().toLocaleString('ru')}`;
+  document.getElementById('contactScreen').classList.remove('open');
+  openLink(`https://t.me/${MANAGER}?text=${encodeURIComponent(msg)}`);
+  updateBadge();showToast('✅ Заявка отправлена!');
+  setTimeout(()=>{switchTab('orders');renderOrders();},700);
+}
+
+// ╔═══════════════════════════════╗
+// ║  USER ORDERS                  ║
+// ╚═══════════════════════════════╝
+async function cancelOrder(id){
+  if(!confirm('Отменить заявку и уведомить менеджера?'))return;
+  await dbUpdateOrder(id,{status:'cancelled'});
+  openLink(`https://t.me/${MANAGER}?text=${encodeURIComponent(`❌ Клиент отменил заявку\n👤 ${currentUser?.username}\n📅 ${new Date().toLocaleString('ru')}`)}`);
+  updateBadge();renderOrders();showToast('Заявка отменена');
+}
+async function completeOrder(id){
+  if(!confirm('Отметить как выполненную?'))return;
+  await dbUpdateOrder(id,{status:'done'});
+  updateBadge();renderOrders();showToast('✅ Готово');
+}
+async function renderOrders(){
+  const el=document.getElementById('ordersList');if(!el)return;
+  if(!currentUser){el.innerHTML=`<div class="empty"><div class="ei">🔐</div><div class="et">Нужна авторизация</div><div class="es">Войдите чтобы видеть свои заявки</div></div><div class="cta" style="padding-top:12px;"><button class="btn-p" onclick="openAuth()">Войти / Зарегистрироваться</button></div>`;return;}
+  if(currentUser.blocked){el.innerHTML=`<div class="blk"><div class="blk-i">🚫</div><div class="blk-t">АККАУНТ ЗАБЛОКИРОВАН</div><div class="blk-s">Обратитесь к менеджеру</div></div>`;return;}
+  el.innerHTML=`<div class="empty"><div class="ei">⏳</div><div class="et">Загрузка...</div></div>`;
+  const ords = await dbGetOrders({username:currentUser.username});
+  if(!ords.length){el.innerHTML=`<div class="empty"><div class="ei">📋</div><div class="et">Заявок пока нет</div><div class="es">Нажмите на карточку с курсом чтобы создать заявку</div></div>`;return;}
+  const sL={new:'НОВАЯ',pending:'В РАБОТЕ',done:'ВЫПОЛНЕНА',cancelled:'ОТМЕНЕНА'};
+  const getStr=o=>o.get_str||o.get||'';
+  const giveStr=o=>o.give_str||o.give||'';
+  el.innerHTML='<div class="olist">'+ords.map(o=>{
+    const d=new Date(o.created_at||o.createdAt).toLocaleDateString('ru',{day:'numeric',month:'short'})+' '+new Date(o.created_at||o.createdAt).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    const can=o.status!=='done'&&o.status!=='cancelled';
+    return `<div class="ocard ${o.status}"><div class="ohead"><div class="opair">${o.pair}</div><div class="ost ${o.status}">${sL[o.status]||o.status}</div></div><div class="oamt"><div class="ogive">${giveStr(o)}</div><div style="color:var(--dim)">→</div><div class="oget">${getStr(o)}</div></div><div class="otime">📅 ${d}</div>${can?`<div class="oacts"><button class="oact oact-done" onclick="completeOrder('${o.id}')">✅ Выполнена</button><button class="oact oact-cancel" onclick="cancelOrder('${o.id}')">✕ Отменить</button></div>`:''}</div>`;
+  }).join('')+'</div>';
+}
+async function updateBadge(){
+  const b=document.getElementById('ordersBadge');
+  if(!currentUser){b.classList.remove('show');return;}
+  const ords=await dbGetOrders({username:currentUser.username,status:'new'});
+  const n=ords.length;
+  if(n>0){b.textContent=n>9?'9+':n;b.classList.add('show');}else b.classList.remove('show');
+}
+
+// ╔═══════════════════════════════╗
+// ║  AUTH                         ║
+// ╚═══════════════════════════════╝
+function openAuth(){document.getElementById('authOv').classList.add('open');}
+function closeAuth(){document.getElementById('authOv').classList.remove('open');afterAuth=null;}
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('aseg-login').classList.toggle('active',m==='login');
+  document.getElementById('aseg-reg').classList.toggle('active',m==='reg');
+  document.getElementById('loginForm').style.display=m==='login'?'block':'none';
+  document.getElementById('regForm').style.display=m==='reg'?'block':'none';
+  document.getElementById('authTitle').textContent=m==='login'?'ВОЙТИ':'РЕГИСТРАЦИЯ';
+  ['loginErr','loginPassErr','regUsernameErr','regNameErr','regPassErr'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove('show');});
+}
+
+async function doLogin(){
+  const btn=document.getElementById('loginBtn');
+  btn.disabled=true;btn.textContent='...';
+  let raw=document.getElementById('loginUsername').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  if(!raw.startsWith('@'))raw='@'+raw;
+  const u=await dbGetUser(raw);
+  if(!u){
+    document.getElementById('loginErr').classList.add('show');
+    btn.disabled=false;btn.textContent='ВОЙТИ →';return;
+  }
+  // Проверяем пароль (хранится как password_hash или password)
+  const storedPass=u.password_hash||u.password||'';
+  if(storedPass&&storedPass!==pass){
+    document.getElementById('loginPassErr').classList.add('show');
+    btn.disabled=false;btn.textContent='ВОЙТИ →';return;
+  }
+  currentUser=u;
+  localStorage.setItem('primal_session_v1',u.username);
+  document.getElementById('authOv').classList.remove('open');
+  showToast('✅ Вы вошли как '+u.username);
+  btn.disabled=false;btn.textContent='ВОЙТИ →';
+  renderProfile();renderOrders();updateBadge();
+  if(afterAuth){const fn=afterAuth;afterAuth=null;fn();}
+}
+
+async function doRegister(){
+  const btn=document.getElementById('regBtn');
+  btn.disabled=true;btn.textContent='...';
+  let raw=document.getElementById('regUsername').value.trim();
+  const name=document.getElementById('regName').value.trim();
+  const pass=document.getElementById('regPass').value;
+  const pass2=document.getElementById('regPass2').value;
+  let hasErr=false;
+  if(!raw.startsWith('@'))raw='@'+raw;
+  if(raw.replace('@','').length<5){document.getElementById('regUsernameErr').textContent='Минимум 5 символов';document.getElementById('regUsernameErr').classList.add('show');hasErr=true;}
+  if(!name){document.getElementById('regNameErr').classList.add('show');hasErr=true;}
+  if(pass.length<6){document.getElementById('regPassErr').textContent='Минимум 6 символов';document.getElementById('regPassErr').classList.add('show');hasErr=true;}
+  if(pass!==pass2){document.getElementById('regPassErr').textContent='Пароли не совпадают';document.getElementById('regPassErr').classList.add('show');hasErr=true;}
+  if(hasErr){btn.disabled=false;btn.textContent='ЗАРЕГИСТРИРОВАТЬСЯ →';return;}
+  if(globalSettings.reg_enabled===false||globalSettings.reg_enabled==='false'){showToast('⏸ Регистрация закрыта');btn.disabled=false;btn.textContent='ЗАРЕГИСТРИРОВАТЬСЯ →';return;}
+  const result=await dbCreateUser(raw,name,pass);
+  if(!result.ok){
+    document.getElementById('regUsernameErr').textContent=result.error==='exists'?'Username уже занят. Войдите.':'Ошибка: '+result.error;
+    document.getElementById('regUsernameErr').classList.add('show');
+    btn.disabled=false;btn.textContent='ЗАРЕГИСТРИРОВАТЬСЯ →';return;
+  }
+  currentUser=await dbGetUser(raw);
+  localStorage.setItem('primal_session_v1',raw);
+  document.getElementById('authOv').classList.remove('open');
+  document.getElementById('wName').textContent=name+'!';
+  document.getElementById('wUsername').textContent=raw;
+  document.getElementById('welcomeOv').classList.add('open');
+  btn.disabled=false;btn.textContent='ЗАРЕГИСТРИРОВАТЬСЯ →';
+  renderProfile();renderOrders();updateBadge();
+}
+
+function closeWelcome(){
+  document.getElementById('welcomeOv').classList.remove('open');
+  if(afterAuth){const fn=afterAuth;afterAuth=null;fn();}
+}
+
+async function deleteOwnAccount(){
+  if(!currentUser)return;
+  if(!confirm(`Удалить аккаунт ${currentUser.username}?\nЭто действие нельзя отменить.`))return;
+  const pass=prompt('Введите пароль для подтверждения:');
+  if(pass===null)return;
+  const storedPass=currentUser.password_hash||currentUser.password||'';
+  if(storedPass&&storedPass!==pass){showToast('❌ Неверный пароль');return;}
+  await dbDeleteUser(currentUser.username);
+  localStorage.removeItem('primal_session_v1');
+  currentUser=null;
+  renderProfile();renderOrders();updateBadge();
+  showToast('Аккаунт удалён');
+}
+
+function logOut(){
+  if(!confirm('Выйти из аккаунта?'))return;
+  localStorage.removeItem('primal_session_v1');
+  currentUser=null;
+  renderProfile();renderOrders();updateBadge();
+  showToast('Вы вышли из аккаунта');
+}
+
+// ╔═══════════════════════════════╗
+// ║  PROFILE                      ║
+// ╚═══════════════════════════════╝
+async function renderProfile(){
+  const el=document.getElementById('profileContent');if(!el)return;
+  if(!currentUser){el.innerHTML=`<div class="empty"><div class="ei">👤</div><div class="et">Вы не авторизованы</div><div class="es">Войдите или зарегистрируйтесь чтобы подавать заявки</div></div><div class="cta" style="padding-top:12px;"><button class="btn-p" onclick="openAuth()">Войти / Зарегистрироваться</button></div>`;return;}
+  const ini=currentUser.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const date=new Date(currentUser.created_at||currentUser.registeredAt).toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric'});
+  const ords=await dbGetOrders({username:currentUser.username});
+  const isTopAdmin=Object.keys(ADMIN_LIST).some(k=>k.toLowerCase()===currentUser.username.toLowerCase());
+  const isStaff=currentUser.role==='admin'||currentUser.role==='moderator';
+  el.innerHTML=`
+    <div class="pc">
+      ${currentUser.blocked?`<div class="blk" style="margin-bottom:13px;"><div class="blk-i">🚫</div><div class="blk-t">АККАУНТ ЗАБЛОКИРОВАН</div><div class="blk-s">Обратитесь к менеджеру</div></div>`:''}
+      <div style="display:flex;align-items:center;gap:13px;margin-bottom:12px;">
+        <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:white;flex-shrink:0;">${ini}</div>
+        <div>
+          <div style="font-size:16px;font-weight:800;">${currentUser.name}</div>
+          <div style="font-size:12px;color:var(--red-light);font-weight:600;">${currentUser.username}</div>
+          ${(isStaff||isTopAdmin)?`<div style="font-size:9px;color:var(--orange);font-weight:800;margin-top:2px;letter-spacing:.5px;">🛡️ ${isTopAdmin||currentUser.role==='admin'?'АДМИНИСТРАТОР':'МОДЕРАТОР'}</div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <div style="background:rgba(${currentUser.blocked?'200,16,46':'200,200,210'},.08);border:1px solid rgba(${currentUser.blocked?'200,16,46':'200,200,210'},.15);border-radius:20px;padding:3px 9px;font-size:9px;font-weight:800;color:${currentUser.blocked?'var(--red-light)':'var(--silver)'};letter-spacing:.5px;">${currentUser.blocked?'🚫 БЛОК':'✅ АКТИВЕН'}</div>
+        <div style="background:rgba(200,200,210,.06);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.3px;">📅 ${date}</div>
+        <div style="background:rgba(200,16,46,.08);border:1px solid var(--border-r);border-radius:20px;padding:3px 9px;font-size:9px;font-weight:700;color:var(--red-light);letter-spacing:.3px;">📋 ${ords.length} ЗАЯВОК</div>
+        <div style="background:rgba(200,200,210,.05);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.3px;">${isSupabaseReady?'☁️ SUPABASE':'💾 LOCAL'}</div>
+      </div>
+    </div>
+    ${!currentUser.blocked?`<div class="pc"><div style="font-size:9px;color:var(--dim);font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">Быстрые действия</div><div style="display:flex;flex-direction:column;gap:7px;"><button class="btn-p" onclick="openExchange('rub')">🇷🇺 Обменять рубли на юани</button><button class="btn-s" onclick="openExchange('usd')">🇺🇸 Обменять доллары на юани</button></div></div>`:''}
+    <div class="pc"><div style="font-size:9px;color:var(--dim);font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:9px;">Поддержка</div>
+      <button class="btn-tg" onclick="openManager()">💬 @semyonyaho</button>
+      ${(isStaff||isTopAdmin)?`<button class="btn-a" style="margin-top:8px;margin-bottom:0;" onclick="openAdminPanel()">🛡️ Панель управления</button>`:''}
+    </div>
+    <div style="text-align:center;padding:10px 0 4px;display:flex;justify-content:center;gap:22px;">
+      <span style="font-size:11px;color:var(--dim);cursor:pointer;text-decoration:underline;" onclick="logOut()">Выйти</span>
+      <span style="font-size:11px;color:var(--red-light);cursor:pointer;text-decoration:underline;opacity:.7;" onclick="deleteOwnAccount()">🗑 Удалить аккаунт</span>
+    </div>`;
+}
+
+// ╔═══════════════════════════════╗
+// ║  ADMIN PANEL                  ║
+// ╚═══════════════════════════════╝
+async function openAdminPanel(){
+  if(!currentUser)return;
+  const isTopAdmin=Object.keys(ADMIN_LIST).some(k=>k.toLowerCase()===currentUser.username.toLowerCase());
+  const isStaff=currentUser.role==='admin'||currentUser.role==='moderator';
+  if(!isTopAdmin&&!isStaff){showToast('🚫 Нет доступа');return;}
+  if(isTopAdmin){
+    const key=Object.keys(ADMIN_LIST).find(k=>k.toLowerCase()===currentUser.username.toLowerCase());
+    const pass=prompt(`🛡️ Пароль администратора:`);
+    if(pass!==ADMIN_LIST[key]){showToast('❌ Неверный пароль');return;}
+  }
+  const role=isTopAdmin||currentUser.role==='admin'?'ADMIN':'MODER';
+  document.getElementById('adminRoleBadge').textContent='🛡️ '+role;
+  document.getElementById('adminPanel').classList.add('open');
+  renderAdminDash();renderAdminOrders();renderAdminUsers();loadAdminSettings();
+}
+function closeAdmin(){document.getElementById('adminPanel').classList.remove('open');}
+
+function switchAdminPanel(p){
+  document.querySelectorAll('.apanel').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.adm-tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById('apanel-'+p).classList.add('active');
+  document.querySelectorAll('.adm-tab')[{dash:0,orders:1,users:2,settings:3}[p]].classList.add('active');
+  if(p==='orders')renderAdminOrders();
+  if(p==='users')renderAdminUsers();
+  if(p==='dash')renderAdminDash();
+}
+
+async function renderAdminDash(){
+  const ords=await dbGetOrders();
+  const users=await dbGetUsers();
+  const blkd=users.filter(u=>u.blocked).length;
+  const newOrd=ords.filter(o=>o.status==='new').length;
+  const doneOrd=ords.filter(o=>o.status==='done').length;
+  const cnyTotal=ords.filter(o=>o.status==='done').reduce((s,o)=>s+(+(o.cny_amount||o.cny)||0),0);
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="sc c-blue"><div class="sc-ico">👥</div><div class="sc-val">${users.length}</div><div class="sc-lbl">ПОЛЬЗОВАТЕЛЕЙ</div></div>
+    <div class="sc c-red"><div class="sc-ico">🚫</div><div class="sc-val">${blkd}</div><div class="sc-lbl">ЗАБЛОКИРОВАНО</div></div>
+    <div class="sc c-orange"><div class="sc-ico">🔔</div><div class="sc-val">${newOrd}</div><div class="sc-lbl">НОВЫХ ЗАЯВОК</div></div>
+    <div class="sc c-green"><div class="sc-ico">✅</div><div class="sc-val">${doneOrd}</div><div class="sc-lbl">ВЫПОЛНЕНО</div></div>
+    <div class="sc c-silver"><div class="sc-ico">💰</div><div class="sc-val">${Math.round(cnyTotal)}</div><div class="sc-lbl">ЮАНЕЙ ВЫДАНО</div></div>
+    <div class="sc c-purple"><div class="sc-ico">📋</div><div class="sc-val">${ords.length}</div><div class="sc-lbl">ВСЕГО ЗАЯВОК</div></div>`;
+  // Activity
+  const days=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toLocaleDateString('ru',{weekday:'short'});const cnt=ords.filter(o=>new Date(o.created_at||o.createdAt).toDateString()===d.toDateString()).length;days.push({l:ds,c:cnt});}
+  const mx=Math.max(...days.map(d=>d.c),1);
+  document.getElementById('actChart').innerHTML=days.map(d=>`<div class="bar-col"><div class="bar" style="height:${Math.max(3,d.c/mx*48)}px;"></div><div class="bar-l">${d.l}</div></div>`).join('');
+  // Recent
+  const sL={new:'НОВАЯ',pending:'В РАБОТЕ',done:'ГОТОВА',cancelled:'ОТМЕНЕНА'};
+  const getStr=o=>o.get_str||o.get||'';
+  const giveStr=o=>o.give_str||o.give||'';
+  document.getElementById('recentOrders').innerHTML=ords.slice(0,5).map(o=>`
+    <div class="ao-card ${o.status}"><div class="ao-head"><div class="ao-pair">${o.pair}</div><div class="ao-st ${o.status}">${sL[o.status]}</div></div>
+    <div class="ao-cli">👤 <b>${o.username}</b> (${o.name})</div>
+    <div class="ao-amt"><div class="ao-give">${giveStr(o)}</div><div style="color:var(--dim)">→</div><div class="ao-get">${getStr(o)}</div></div></div>`).join('')
+    ||`<div class="empty"><div class="ei">📋</div><div class="et">Заявок нет</div></div>`;
+  const nb=document.getElementById('newOrdBadge');
+  if(newOrd>0){nb.textContent=newOrd;nb.style.display='inline-flex';}else nb.style.display='none';
+}
+
+let ordFilter='all';
+function fOrd(f,el){ordFilter=f;document.querySelectorAll('#apanel-orders .fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAdminOrders();}
+async function renderAdminOrders(){
+  const srch=document.getElementById('ordSearch')?.value.toLowerCase()||'';
+  let ords=await dbGetOrders(ordFilter!=='all'?{status:ordFilter}:{});
+  if(srch)ords=ords.filter(o=>o.username.toLowerCase().includes(srch)||(o.give_str||o.give||'').toLowerCase().includes(srch)||(o.get_str||o.get||'').toLowerCase().includes(srch));
+  const sL={new:'НОВАЯ',pending:'В РАБОТЕ',done:'ГОТОВА',cancelled:'ОТМЕНЕНА'};
+  const el=document.getElementById('adminOrdersList');
+  const getStr=o=>o.get_str||o.get||'';
+  const giveStr=o=>o.give_str||o.give||'';
+  if(!ords.length){el.innerHTML=`<div class="empty"><div class="ei">📋</div><div class="et">Ничего не найдено</div></div>`;return;}
+  el.innerHTML=ords.map(o=>{
+    const d=new Date(o.created_at||o.createdAt).toLocaleDateString('ru',{day:'numeric',month:'short'})+' '+new Date(o.created_at||o.createdAt).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+    const can=o.status!=='done'&&o.status!=='cancelled';
+    return `<div class="ao-card ${o.status}">
+      <div class="ao-head"><div class="ao-pair">${o.pair}</div><div class="ao-st ${o.status}">${sL[o.status]}</div></div>
+      <div class="ao-cli">👤 <b>${o.username}</b> (${o.name})</div>
+      <div class="ao-amt"><div class="ao-give">${giveStr(o)}</div><div style="color:var(--dim)">→</div><div class="ao-get">${getStr(o)}</div></div>
+      <div class="ao-time">📅 ${d}</div>
+      ${can?`<div class="ao-acts">
+        ${o.status==='new'?`<button class="aoa aoa-pend" onclick="adminOrdStatus('${o.id}','pending')">⏳ В работу</button>`:''}
+        ${o.status!=='done'?`<button class="aoa aoa-done" onclick="adminOrdStatus('${o.id}','done')">✅ Готова</button>`:''}
+        <button class="aoa aoa-msg" onclick="msgClient('${o.username}','${o.pair}','${giveStr(o)}','${getStr(o)}')">💬 Написать</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+async function adminOrdStatus(id,status){await dbUpdateOrder(id,{status});renderAdminOrders();renderAdminDash();showToast(status==='done'?'✅ Выполнена':'⏳ В работе');}
+function msgClient(uname,pair,give,get){openLink(`https://t.me/${uname.replace('@','')}?text=${encodeURIComponent(`Здравствуйте! По вашей заявке ${pair} (${give} → ${get}) — менеджер Primal Exchange.`)}`);}
+
+let usrFilter='all';
+function fUsr(f,el){usrFilter=f;document.querySelectorAll('#apanel-users .fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAdminUsers();}
+async function renderAdminUsers(){
+  const srch=document.getElementById('usrSearch')?.value.toLowerCase()||'';
+  let users=await dbGetUsers();
+  if(usrFilter==='active')users=users.filter(u=>!u.blocked&&!u.role);
+  if(usrFilter==='blocked')users=users.filter(u=>u.blocked);
+  if(usrFilter==='staff')users=users.filter(u=>u.role&&u.role!=='user'||Object.keys(ADMIN_LIST).some(k=>k.toLowerCase()===(u.username||'').toLowerCase()));
+  if(srch)users=users.filter(u=>(u.username||'').toLowerCase().includes(srch)||(u.name||'').toLowerCase().includes(srch));
+  const el=document.getElementById('adminUsersList');
+  if(!users.length){el.innerHTML=`<div class="empty"><div class="ei">👥</div><div class="et">Пользователей нет</div></div>`;return;}
+  const ords=await dbGetOrders();
+  el.innerHTML=users.map(u=>{
+    const ini=(u.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const date=new Date(u.created_at||u.registeredAt).toLocaleDateString('ru',{day:'numeric',month:'short',year:'2-digit'});
+    const uOrd=ords.filter(o=>o.username===u.username);
+    const isTopAdmin=Object.keys(ADMIN_LIST).some(k=>k.toLowerCase()===(u.username||'').toLowerCase());
+    const isMe=u.username===currentUser?.username;
+    const sClass=isTopAdmin||u.role==='admin'||u.role==='moderator'?'staff':u.blocked?'blocked':'active';
+    const sText=isTopAdmin?'👑 ADMIN':u.role==='moderator'?'🛡️ MODER':u.blocked?'🚫 БЛОК':'✅ АКТИВ';
+    return `<div class="u-row ${u.blocked?'blocked':''}">
+      <div class="u-top"><div class="u-av">${ini}</div><div class="u-inf"><div class="u-name">${u.name||u.username}</div><div class="u-un">${u.username}</div></div><div class="u-st ${sClass}">${sText}</div></div>
+      <div class="u-meta"><div class="u-m">📅 <b>${date}</b></div><div class="u-m">📋 <b>${uOrd.length}</b></div><div class="u-m">✅ <b>${uOrd.filter(o=>o.status==='done').length}</b></div></div>
+      ${!isMe&&!isTopAdmin?`<div class="u-acts">
+        ${!u.blocked?`<button class="ua ua-blk" onclick="admBlock('${u.username}')">🚫 Блок</button>`:
+                     `<button class="ua ua-unblk" onclick="admUnblock('${u.username}')">✅ Разблок</button>`}
+        ${!u.role||u.role==='user'?`<button class="ua ua-promo" onclick="admPromote('${u.username}')">🛡️ Модер</button>`:
+                                   `<button class="ua ua-demo" onclick="admDemote('${u.username}')">↓ Снять</button>`}
+        <button class="ua ua-ord" onclick="viewUserOrd('${u.username}')">📋 Заявки</button>
+        <button class="ua ua-del" onclick="admDelete('${u.username}')">🗑 Удалить</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+async function admBlock(u){if(!confirm(`Заблокировать ${u}?`))return;await dbUpdateUser(u,{blocked:true});renderAdminUsers();renderAdminDash();showToast(`${u} заблокирован`);}
+async function admUnblock(u){await dbUpdateUser(u,{blocked:false});renderAdminUsers();renderAdminDash();showToast(`${u} разблокирован`);}
+async function admPromote(u){if(!confirm(`Назначить ${u} модератором?`))return;await dbUpdateUser(u,{role:'moderator'});renderAdminUsers();showToast(`${u} — модератор`);}
+async function admDemote(u){if(!confirm(`Снять роль с ${u}?`))return;await dbUpdateUser(u,{role:'user'});renderAdminUsers();showToast(`Роль снята`);}
+async function admDelete(u){
+  if(!confirm(`Удалить аккаунт ${u}? Это нельзя отменить.`))return;
+  await dbDeleteUser(u);
+  if(localStorage.getItem('primal_session_v1')===u)localStorage.removeItem('primal_session_v1');
+  renderAdminUsers();renderAdminDash();showToast(`🗑 ${u} удалён`);
+}
+function viewUserOrd(u){document.getElementById('ordSearch').value=u;fOrd('all',document.querySelectorAll('#apanel-orders .fb')[0]);switchAdminPanel('orders');}
+async function addUserManually(){
+  let raw=document.getElementById('manUsername').value.trim();
+  const name=document.getElementById('manName').value.trim();
+  if(!raw){showToast('⚠️ Введите username');return;}
+  if(!name){showToast('⚠️ Введите имя');return;}
+  if(!raw.startsWith('@'))raw='@'+raw;
+  const result=await dbCreateUser(raw,name,'manual_add');
+  if(!result.ok&&result.error!=='exists'){showToast('Ошибка: '+result.error);return;}
+  if(result.error==='exists')showToast('Пользователь уже есть в базе');
+  else showToast(`✅ ${raw} добавлен`);
+  document.getElementById('manUsername').value='';document.getElementById('manName').value='';
+  renderAdminUsers();renderAdminDash();
+}
+async function addStaff(){
+  let raw=document.getElementById('newStaffUser').value.trim();
+  if(!raw)return;if(!raw.startsWith('@'))raw='@'+raw;
+  const u=await dbGetUser(raw);
+  if(!u){showToast('❌ Пользователь не найден');return;}
+  await dbUpdateUser(raw,{role:'moderator'});
+  document.getElementById('newStaffUser').value='';
+  renderAdminUsers();showToast(`✅ ${raw} — модератор`);
+}
+
+async function loadAdminSettings(){
+  const s=await dbGetSettings();
+  if(s.cny_min)document.getElementById('sCnyMin').value=s.cny_min;
+  if(s.cny_max)document.getElementById('sCnyMax').value=s.cny_max;
+  if(s.markup_rub)document.getElementById('sMarkupRub').value=s.markup_rub;
+  if(s.markup_usd)document.getElementById('sMarkupUsd').value=s.markup_usd;
+  if(s.orders_enabled===false||s.orders_enabled==='false')document.getElementById('togOrders').classList.remove('on');
+  if(s.reg_enabled===false||s.reg_enabled==='false')document.getElementById('togReg').classList.remove('on');
+}
+async function saveAdminSettings(){
+  const s={
+    cny_min:+document.getElementById('sCnyMin').value||300,
+    cny_max:+document.getElementById('sCnyMax').value||5000,
+    markup_rub:+document.getElementById('sMarkupRub').value||10,
+    markup_usd:+document.getElementById('sMarkupUsd').value||5,
+    orders_enabled:document.getElementById('togOrders').classList.contains('on'),
+    reg_enabled:document.getElementById('togReg').classList.contains('on'),
+  };
+  await dbSaveSettings(s);
+  globalSettings=s;CNY_MIN=s.cny_min;CNY_MAX=s.cny_max;
+  document.getElementById('mlimMin').textContent=CNY_MIN;
+  document.getElementById('mlimMax').textContent=CNY_MAX.toLocaleString('ru');
+  document.getElementById('limBanner').textContent=`⚖️ Лимит: ${CNY_MIN} – ${CNY_MAX.toLocaleString('ru')} ¥ за операцию`;
+  fetchRates();showToast('✅ Настройки сохранены');
+}
+async function exportData(){
+  const data={exportDate:new Date().toISOString(),users:await dbGetUsers(),orders:await dbGetOrders(),settings:await dbGetSettings()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`primal_exchange_${new Date().toLocaleDateString('ru').replace(/\./g,'-')}.json`;a.click();
+  showToast('📥 Экспорт скачан');
+}
+
+// ╔═══════════════════════════════╗
+// ║  HELPERS                      ║
+// ╚═══════════════════════════════╝
+function openManager(){openLink(`https://t.me/${MANAGER}?text=${encodeURIComponent('Здравствуйте! Хочу узнать про обмен в Primal Exchange.')}`);}
+function openLink(url){if(tg)tg.openTelegramLink(url);else window.open(url,'_blank');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ╔═══════════════════════════════╗
+// ║  START                        ║
+// ╚═══════════════════════════════╝
+init();
+</script>
+</body>
+</html>
